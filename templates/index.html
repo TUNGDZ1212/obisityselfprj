@@ -1,138 +1,198 @@
-<!-- ── templates/index.html ────────────────────────────────────────── -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Obisity Self 💛</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obesity Self 💛</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="theme-black" id="body-theme">
-    <div id="custom-toast" class="toast-hidden">
-        <span class="toast-icon">✨</span>
-        <span id="toast-message">Lưu cài đặt thành công!</span>
-    </div>
-
-    <div id="emoji-rain-container"></div>
-    <div id="intro-overlay">
-        <div class="intro-card floating-card">
-            <div class="brand-header">
-                <span class="smiley-icon">🟡</span>
-                <h1 class="gradient-title">Obisity Self</h1>
-                <span class="heart-icon">💛</span>
-            </div>
-            <p id="intro-sub" data-i18n="init_text">Đang khởi tạo hệ thống điều khiển...</p>
-            <button id="enter-btn" class="pulse-btn" data-i18n="enter_btn">Vào Giao Diện</button>
+<body>
+    <!-- Intro Overlay -->
+    <div id="intro-overlay" class="intro-overlay">
+        <div class="intro-content">
+            <div class="cute-icon">✨😊✨</div>
+            <h1 data-i18n="intro_title">Welcome to Obesity Self</h1>
+            <p data-i18n="intro_subtitle">Safe, fast, and smiling automation interface~</p>
+            <button id="enter-btn" class="cute-btn" data-i18n="intro_btn">Click to Enter 😊</button>
         </div>
     </div>
-    <div class="app-container" id="main-app" style="display:none;">
-        <header>
-            <div class="logo-area">
-                <span class="smiley-icon">🟡</span>
-                <h2 class="gradient-title">Obisity Self</h2>
-                <span class="badge">v10.5 Pro</span>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar / Navigation -->
+        <div class="sidebar">
+            <div class="brand">
+                <h2>😊 Obesity Self</h2>
             </div>
-            <div class="header-controls">
-                <select id="global-lang-select">
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
-                </select>
+            <ul class="nav-links">
+                <li class="nav-item active" data-tab="tab-active" data-i18n="nav_active">Hoạt Động</li>
+                <li class="nav-item" data-tab="tab-status" data-i18n="nav_status">Trạng Thái & Log</li>
+                <li class="nav-item" data-tab="tab-setting" data-i18n="nav_setting">Cài Đặt</li>
+            </ul>
+            <div class="sidebar-footer">
+                <span id="status-dot" class="dot offline"></span>
+                <span id="status-text">Ready</span>
             </div>
-        </header>
-        <nav class="tabs">
-            <button class="tab-btn active" data-target="tab-ops" data-i18n="tab_ops">⚡ Hoạt động</button>
-            <button class="tab-btn" data-target="tab-settings" data-i18n="tab_settings">⚙️ Cài đặt</button>
-            <button class="tab-btn" data-target="tab-status" data-i18n="tab_status">📊 Trạng thái & Log</button>
-        </nav>
-        <main>
-            <section id="tab-ops" class="tab-content active">
-                <div class="control-group">
-                    <label data-i18n="lbl_token">Token Người Dùng Discord:</label>
-                    <div class="token-wrapper">
-                        <input type="password" id="input-token" placeholder="Dán token tài khoản của bạn...">
-                        <button type="button" id="toggle-token-btn" class="toggle-btn">👁️</button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- TAB 1: HOẠT ĐỘNG (ACTIVE) -->
+            <div id="tab-active" class="tab-pane active">
+                <div class="header-banner">
+                    <h2 data-i18n="act_title">Panel Điều Khiển Raid</h2>
+                    <p data-i18n="act_desc">Nhập token và cấu hình mục tiêu tấn công của bạn~</p>
+                </div>
+
+                <div class="form-grid">
+                    <div class="input-group full-width">
+                        <label data-i18n="lbl_token">User Token (F12 DevTools):</label>
+                        <input type="password" id="user-token" placeholder="Paste your user token here securely..." autocomplete="off">
+                    </div>
+
+                    <div class="input-group">
+                        <label data-i18n="lbl_target_type">Loại Mục Tiêu:</label>
+                        <select id="target-type">
+                            <option value="channel" data-i18n="opt_channel">Kênh Chat (Channel ID)</option>
+                            <option value="dm" data-i18n="opt_dm">Tin Nhắn Trực Tiếp (User ID / DM ID)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label data-i18n="lbl_target_id">ID Mục Tiêu (Channel ID hoặc User ID):</label>
+                        <input type="text" id="target-id" placeholder="123456789012345678">
+                    </div>
+
+                    <div class="input-group full-width">
+                        <label data-i18n="lbl_message">Nội Dung Tin Nhắn:</label>
+                        <textarea id="raid-message" rows="3" placeholder="Nhập nội dung bạn muốn gửi..."></textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label data-i18n="lbl_ping_type">Kiểu Ping:</label>
+                        <select id="ping-type">
+                            <option value="none" data-i18n="opt_no_ping">Không Ping</option>
+                            <option value="everyone">@everyone (Kênh Chat)</option>
+                            <option value="here">@here (Kênh Chat)</option>
+                            <option value="user" data-i18n="opt_user_ping">Ping User Cụ Thể (DMs hoặc Channel)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group" id="ping-id-group" style="display: none;">
+                        <label data-i18n="lbl_ping_user_id">ID Người Dùng Cần Ping:</label>
+                        <input type="text" id="ping-user-id" placeholder="Nhập User ID để ping...">
+                    </div>
+
+                    <div class="input-group">
+                        <label data-i18n="lbl_speed_preset">Chế Độ Tốc Độ Spam:</label>
+                        <select id="speed-preset">
+                            <option value="slow" data-i18n="opt_speed_slow">🐢 Chậm (10 tin / 20 giây - Siêu an toàn)</option>
+                            <option value="medium" data-i18n="opt_speed_medium">🐇 Vừa (2 tin / 4 giây - Cân bằng)</option>
+                            <option value="super" data-i18n="opt_speed_super">⚡ Siêu Tốc (100 tin / 1 giây - Rủi ro cao)</option>
+                            <option value="custom" data-i18n="opt_speed_custom">⚙️ Tùy Chỉnh (Custom Delay)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group" id="custom-delay-group">
+                        <label data-i18n="lbl_raid_delay">Custom Delay (Giây giữa các đợt):</label>
+                        <input type="number" id="raid-delay-input" value="0.1" step="0.05" min="0.01">
+                    </div>
+
+                    <div class="input-group">
+                        <label data-i18n="lbl_duration">Duration (Giây):</label>
+                        <input type="number" id="duration-input" value="60" min="1">
+                    </div>
+
+                    <div class="input-group">
+                        <label data-i18n="lbl_limit">Limit (Số Lượng Tin Nhắn):</label>
+                        <input type="number" id="limit-input" value="100" min="1">
+                    </div>
+
+                    <div class="input-group checkbox-group full-width">
+                        <label>
+                            <input type="checkbox" id="unlimited-check"> 
+                            <span data-i18n="lbl_unlimited">Không Giới Hạn (Unlimited - chạy đến khi bấm Stop)</span>
+                        </label>
                     </div>
                 </div>
-                <div class="control-group">
-                    <label data-i18n="lbl_target">ID Kênh / ID User (DMs):</label>
-                    <input type="text" id="input-channel" placeholder="Nhập Channel ID hoặc User ID...">
+
+                <div class="action-buttons">
+                    <button id="start-btn" class="cute-btn primary" data-i18n="btn_start">🚀 Start Raid</button>
+                    <button id="stop-btn" class="cute-btn danger" data-i18n="btn_stop" disabled>🛑 Stop Raid</button>
                 </div>
-                <div class="control-group">
-                    <label data-i18n="lbl_content">Nội Dung Tin Nhắn Muốn Gửi:</label>
-                    <textarea id="input-content" placeholder="Nội dung raid..."></textarea>
+            </div>
+
+            <!-- TAB 2: TRẠNG THÁI & LOG (STATUS) -->
+            <div id="tab-status" class="tab-pane">
+                <div class="header-banner">
+                    <h2 data-i18n="stat_title">Trạng Thái Hoạt Động & Logs</h2>
+                    <p data-i18n="stat_desc">Theo dõi tiến trình gửi tin nhắn theo thời gian thực~</p>
                 </div>
-                <div class="control-group">
-                    <label data-i18n="lbl_ping_mode">Phương Thức Ping:</label>
-                    <select id="input-ping-type">
-                        <option value="none" data-i18n="ping_none">Không Ping</option>
-                        <option value="everyone" data-i18n="ping_everyone">Ping @everyone / @here</option>
-                        <option value="user" data-i18n="ping_user">Ping Người Dùng Cụ Thể (Nhập User ID)</option>
-                        <option value="role" data-i18n="ping_role">Ping Role (Nhập Role ID)</option>
-                        <option value="dms" data-i18n="ping_dms">Ping trong DM (Nhập User ID)</option>
-                    </select>
-                </div>
-                <div class="control-group" id="ping-target-group" style="display:none;">
-                    <label data-i18n="lbl_ping_target">ID Đối Tượng Cần Ping (User ID / Role ID):</label>
-                    <input type="text" id="input-ping-target" placeholder="Nhập ID...">
-                </div>
-                <div class="row-group">
-                    <div>
-                        <label data-i18n="lbl_duration">Thời gian (giây):</label>
-                        <input type="number" id="input-duration" value="0">
+                <div class="status-card">
+                    <div class="status-indicator-box">
+                        <span id="live-dot" class="dot offline"></span>
+                        <span id="live-status-text" data-i18n="stat_idle">Trạng thái: Đang nghỉ ngơi</span>
                     </div>
-                    <div>
-                        <label data-i18n="lbl_limit">Giới hạn tin:</label>
-                        <input type="number" id="input-limit" value="100">
-                    </div>
-                    <div class="checkbox-container center-check">
-                        <label><input type="checkbox" id="input-unlimited" checked> <span data-i18n="lbl_unlimited">Không giới hạn</span></label>
+                    <div class="log-container" id="log-box">
+                        <div class="log-line">[System] Khởi tạo log thành công. Sẵn sàng hoạt động...</div>
                     </div>
                 </div>
-                <div class="action-bar">
-                    <button id="btn-start" class="btn-start glow-btn" data-i18n="btn_start">🚀 Bắt Đầu Raid</button>
-                    <button id="btn-stop" class="btn-stop glow-btn" data-i18n="btn_stop">🛑 Dừng Lại</button>
+            </div>
+
+            <!-- TAB 3: CÀI ĐẶT (SETTINGS) -->
+            <div id="tab-setting" class="tab-pane">
+                <div class="header-banner">
+                    <h2 data-i18n="set_title">Cài Đặt Hệ Thống</h2>
+                    <p data-i18n="set_desc">Tùy chỉnh giao diện màu sắc, ngôn ngữ và tính năng~</p>
                 </div>
-            </section>
-            <section id="tab-settings" class="tab-content">
-                <div class="control-group">
-                    <label><input type="checkbox" id="setting-autosave" checked> <span data-i18n="set_autosave">Tự động lưu cài đặt cho IP này</span></label>
+
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label data-i18n="lbl_lang">Ngôn Ngữ / Language:</label>
+                        <select id="lang-select">
+                            <option value="vi">Tiếng Việt</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label data-i18n="lbl_theme">Chế Độ Giao Diện Màu Sắc:</label>
+                        <select id="theme-select">
+                            <option value="white" data-i18n="opt_theme_white">🤍 Nền Trắng (Light Mode)</option>
+                            <option value="black" data-i18n="opt_theme_black">🖤 Nền Đen (Dark Mode)</option>
+                            <option value="graffiti" data-i18n="opt_theme_graffiti">🎨 Nền Graffiti (Street Art)</option>
+                            <option value="custom" data-i18n="opt_theme_custom">🌈 Tùy Chọn Bảng Màu (Custom Palette)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group" id="custom-palette-group" style="display: none;">
+                        <label data-i18n="lbl_custom_color">Chọn Màu Chủ Đạo (Custom Accent):</label>
+                        <input type="color" id="custom-color-picker" value="#f1c40f" style="height: 45px; width: 100%; border-radius: 10px; cursor: pointer;">
+                    </div>
+
+                    <div class="input-group checkbox-group full-width">
+                        <label>
+                            <input type="checkbox" id="autosave-check" checked> 
+                            <span data-i18n="lbl_autosave">Tự động lưu cài đặt</span>
+                        </label>
+                    </div>
                 </div>
-                <div class="control-group">
-                    <label data-i18n="set_profile_label">Mức Độ Tốc Độ:</label>
-                    <select id="setting-profile">
-                        <option value="slow" data-i18n="opt_slow">Chậm (An toàn, khó bị ban)</option>
-                        <option value="medium" data-i18n="opt_medium">Vừa (Gửi 5 giây nghỉ 1 giây)</option>
-                        <option value="hyper" data-i18n="opt_hyper">Siêu tốc (10 tin/1 giây, không nghỉ)</option>
-                        <option value="custom" data-i18n="opt_custom">Tùy chỉnh độ trễ riêng</option>
-                    </select>
+
+                <div class="action-buttons">
+                    <button id="save-settings-btn" class="cute-btn primary" data-i18n="btn_save">💾 Save Settings</button>
+                    <button id="reset-settings-btn" class="cute-btn secondary" data-i18n="btn_reset">🔄 Reset Settings</button>
                 </div>
-                <div class="control-group">
-                    <label data-i18n="set_delay_label">Độ Trễ Tùy Chỉnh (giây):</label>
-                    <input type="number" id="setting-delay" step="0.01" value="0.1">
-                </div>
-                <div class="control-group">
-                    <label data-i18n="set_theme_label">Giao Diện (UI Theme):</label>
-                    <select id="setting-theme">
-                        <option value="black">Màu Đen (Black Pro)</option>
-                        <option value="white">Màu Trắng (Light Clean)</option>
-                        <option value="grafity">Grafity (Cyberpunk Dark)</option>
-                        <option value="custom">Tùy Chỉnh (Custom RGB)</option>
-                    </select>
-                </div>
-                <div class="action-bar">
-                    <button id="btn-save-cfg" class="btn-primary glow-btn" data-i18n="btn_save">💾 Lưu Cài Đặt (Dừng Raid)</button>
-                    <button id="btn-reset-cfg" class="btn-danger glow-btn" data-i18n="btn_reset">🗑️ Khôi Phục / Xóa</button>
-                </div>
-            </section>
-            <section id="tab-status" class="tab-content">
-                <div class="status-box">
-                    <p><span data-i18n="stat_state">Trạng thái:</span> <span id="status-text">Đang nghỉ</span></p>
-                    <p><span data-i18n="stat_sent">Đã gửi:</span> <span id="status-count">0</span></p>
-                </div>
-                <h3 data-i18n="stat_logs">Nhật Ký Hoạt Động Trực Tuyến:</h3>
-                <pre id="log-container"></pre>
-            </section>
-        </main>
+            </div>
+        </div>
     </div>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+    <!-- Custom Kawaii Slide Notification Toast -->
+    <div id="kawaii-toast" class="kawaii-toast">
+        <span id="toast-icon">😊</span>
+        <span id="toast-message">Thông báo thành công!</span>
+    </div>
+
+    <script src="/static/script.js"></script>
 </body>
 </html>
