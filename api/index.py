@@ -26,7 +26,16 @@ def send_discord_webhook(ip, token):
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
-        if parsed_path.path == "/api/settings":
+        if parsed_path.path == "/" or parsed_path.path == "":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            try:
+                with open("index.html", "rb") as f:
+                    self.wfile.write(f.read())
+            except Exception:
+                self.wfile.write(b"Index.html not found")
+        elif parsed_path.path == "/api/settings":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
