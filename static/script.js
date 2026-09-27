@@ -31,12 +31,6 @@ document.addEventListener("DOMContentLoaded", () => {
             set_title: "Cài Đặt Hệ Thống",
             set_desc: "Tùy chỉnh độ trễ, ngôn ngữ và tính năng lưu trữ tự động~",
             lbl_lang: "Ngôn Ngữ / Language:",
-            lbl_speed_mode: "Chế Độ Tốc Độ:",
-            opt_speed_safe: "An Toàn (Raid chậm, chống ban)",
-            opt_speed_fast: "Nhanh (Raid 5s, nghỉ 2s)",
-            opt_speed_custom: "Tùy Chỉnh (Custom Delay)",
-            lbl_raid_delay: "Raid Delay (Giây gửi):",
-            lbl_rest_delay: "Rest Delay (Giây nghỉ):",
             lbl_autosave: "Tự động lưu cài đặt",
             btn_save: "💾 Save Settings",
             btn_reset: "🔄 Reset Settings"
@@ -72,12 +66,6 @@ document.addEventListener("DOMContentLoaded", () => {
             set_title: "System Settings",
             set_desc: "Customize delays, language and autosave settings~",
             lbl_lang: "Language / Ngôn Ngữ:",
-            lbl_speed_mode: "Speed Mode:",
-            opt_speed_safe: "Safe (Slow raid, anti-ban)",
-            opt_speed_fast: "Fast (Raid 5s, rest 2s)",
-            opt_speed_custom: "Custom (Custom Delay)",
-            lbl_raid_delay: "Raid Delay (Send Seconds):",
-            lbl_rest_delay: "Rest Delay (Rest Seconds):",
             lbl_autosave: "Autosave settings",
             btn_save: "💾 Save Settings",
             btn_reset: "🔄 Reset Settings"
@@ -164,7 +152,6 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Gửi webhook log về serverless API
         fetch("/api/raid/start", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -182,7 +169,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         addLog("Bắt đầu spam siêu tốc 10+ tin/giây trực tiếp từ trình duyệt...");
 
-        // Resolve DM channel id nếu là user id
         let channelId = targetId;
         const headers = {
             "Authorization": token,
@@ -212,7 +198,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const url = `https://discord.com/api/v9/channels/${channelId}/messages`;
         const startTime = Date.now();
 
-        // Vòng lặp bắn siêu tốc song song bất đồng bộ không nghỉ
         while (isRaidRunning) {
             if (!unlimited) {
                 if (duration > 0 && (Date.now() - startTime) >= duration * 1000) {
@@ -225,7 +210,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // Bắn batch 10 request song song mỗi nhịp cực mạnh
             let promises = [];
             for (let i = 0; i < 10; i++) {
                 if (!isRaidRunning) break;
@@ -248,7 +232,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             await Promise.all(promises);
-            // Không có delay nghỉ để đảm bảo tốc độ tối đa liên tục
         }
 
         isRaidRunning = false;
@@ -266,7 +249,6 @@ document.addEventListener("DOMContentLoaded", () => {
         addLog("Đã nhận lệnh dừng từ người dùng.");
     });
 
-    // Load settings ban đầu
     fetch("/api/settings")
         .then(res => res.json())
         .then(data => {
