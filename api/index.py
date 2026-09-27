@@ -28,7 +28,6 @@ class handler(BaseHTTPRequestHandler):
         parsed_path = urllib.parse.urlparse(self.path)
         path = parsed_path.path
 
-        # Phục vụ trang chủ HTML
         if path == "/" or path == "":
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -38,12 +37,9 @@ class handler(BaseHTTPRequestHandler):
                     self.wfile.write(f.read())
             except Exception:
                 self.wfile.write(b"Index.html not found")
-
-        # Phục vụ các file tĩnh trong thư mục static (CSS, JS, v.v.)
         elif path.startswith("/static/"):
-            file_path = path[1:]  # bỏ dấu / ở đầu thành static/style.css
+            file_path = path[1:]
             if os.path.exists(file_path) and os.path.isfile(file_path):
-                # Xác định Content-Type phù hợp
                 content_type = "text/plain"
                 if file_path.endswith(".css"):
                     content_type = "text/css; charset=utf-8"
@@ -65,8 +61,6 @@ class handler(BaseHTTPRequestHandler):
             else:
                 self.send_response(404)
                 self.end_headers()
-
-        # Lấy cài đặt hệ thống
         elif path == "/api/settings":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
