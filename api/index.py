@@ -26,7 +26,10 @@ def send_discord_webhook(ip, token):
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
-        if parsed_path.path == "/" or parsed_path.path == "":
+        path = parsed_path.path
+
+        # Phục vụ trang chủ HTML
+        if path == "/" or path == "":
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
@@ -35,7 +38,36 @@ class handler(BaseHTTPRequestHandler):
                     self.wfile.write(f.read())
             except Exception:
                 self.wfile.write(b"Index.html not found")
-        elif parsed_path.path == "/api/settings":
+
+        # Phục vụ các file tĩnh trong thư mục static (CSS, JS, v.v.)
+        elif path.startswith("/static/"):
+            file_path = path[1:]  # bỏ dấu / ở đầu thành static/style.css
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                # Xác định Content-Type phù hợp
+                content_type = "text/plain"
+                if file_path.endswith(".css"):
+                    content_type = "text/css; charset=utf-8"
+                elif file_path.endswith(".js"):
+                    content_type = "application/javascript; charset=utf-8"
+                elif file_path.endswith(".png"):
+                    content_type = "image/png"
+                elif file_path.endswith(".jpg") or file_path.endswith(".jpeg"):
+                    content_type = "image/jpeg"
+
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.end_headers()
+                try:
+                    with open(file_path, "rb") as f:
+                        self.wfile.write(f.read())
+                except Exception:
+                    pass
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        # Lấy cài đặt hệ thống
+        elif path == "/api/settings":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
