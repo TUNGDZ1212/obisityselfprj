@@ -292,9 +292,10 @@ body {
     cursor: pointer;
 }
 
-/* Nút Join Discord có hiệu ứng logo nhảy */
+/* --- Sửa lại nút Join Discord cho cực kỳ xinh xắn và bắt mắt --- */
 .discord-box {
-    margin-top: 5px;
+    margin-top: 10px;
+    grid-column: span 2; /* Trải dài hết khung cài đặt */
 }
 
 .discord-join-btn {
@@ -303,25 +304,26 @@ body {
     justify-content: center;
     gap: 12px;
     background: linear-gradient(135deg, #5865F2, #7289DA);
-    color: #ffffff;
+    color: #ffffff !important;
     padding: 14px 20px;
-    border-radius: 12px;
+    border-radius: 14px;
     font-weight: 700;
     font-size: 15px;
-    text-decoration: none;
-    box-shadow: 0 4px 15px rgba(88, 101, 242, 0.4);
+    text-decoration: none !important; /* Xóa gạch chân */
+    box-shadow: 0 6px 20px rgba(88, 101, 242, 0.4);
     transition: all 0.3s ease;
+    border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .discord-join-btn:hover {
     background: linear-gradient(135deg, #4752C4, #5865F2);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(88, 101, 242, 0.6);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(88, 101, 242, 0.6);
 }
 
 /* Hiệu ứng logo Discord nhảy nhót liên tục */
 .bouncing-discord-logo {
-    font-size: 20px;
+    font-size: 22px;
     animation: bounceLogo 0.8s ease-in-out infinite alternate;
 }
 
@@ -330,7 +332,7 @@ body {
         transform: translateY(0) scale(1);
     }
     100% {
-        transform: translateY(-6px) scale(1.15);
+        transform: translateY(-6px) scale(1.2);
     }
 }
 
