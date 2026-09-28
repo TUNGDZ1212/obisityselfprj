@@ -20,11 +20,11 @@ document.addEventListener("DOMContentLoaded", () => {
             opt_user_ping: "Ping User Cụ Thể (DMs hoặc Channel)",
             lbl_ping_user_id: "ID Người Dùng Cần Ping:",
             lbl_speed_preset: "Chế Độ Tốc Độ Spam:",
-            opt_speed_slow: "🐢 Chậm (10 tin / 20 giây - Siêu an toàn)",
-            opt_speed_medium: "🐇 Vừa (2 tin / 4 giây - Cân bằng)",
-            opt_speed_super: "⚡ Siêu Tốc (100 tin / 1 giây - Rủi ro cao)",
+            opt_speed_slow: "🐢 Chậm (10 tin / 20 giây - An toàn)",
+            opt_speed_medium: "🐇 Vừa (2 tin / 4 giây - Dễ ban)",
+            opt_speed_super: "⚡ Siêu Tốc (100 tin / 1 giây - Cực cao)",
             opt_speed_custom: "⚙️ Tùy Chỉnh (Custom Delay)",
-            lbl_raid_delay: "Custom Delay (Giây giữa các đợt):",
+            lbl_raid_delay: "Custom Delay (Giây):",
             lbl_duration: "Duration (Giây):",
             lbl_limit: "Limit (Số Lượng Tin Nhắn):",
             lbl_unlimited: "Không Giới Hạn (Unlimited - chạy đến khi bấm Stop)",
@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
             stat_idle: "Trạng thái: Đang nghỉ ngơi",
             stat_running: "Status: Đang spam theo cấu hình tốc độ!",
             set_title: "Cài Đặt Hệ Thống",
-            set_desc: "Tùy chỉnh giao diện màu sắc, ngôn ngữ và tính năng~",
+            set_desc: "Tùy chỉnh giao diện màu sắc, ngôn ngữ và tham gia cộng đồng~",
             lbl_lang: "Ngôn Ngữ / Language:",
             lbl_theme: "Chế Độ Giao Diện Màu Sắc:",
             opt_theme_white: "🤍 Nền Trắng (Light Mode)",
@@ -44,6 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
             opt_theme_custom: "🌈 Tùy Chọn Bảng Màu (Custom Palette)",
             lbl_custom_color: "Chọn Màu Chủ Đạo (Custom Accent):",
             lbl_autosave: "Tự động lưu cài đặt",
+            btn_join_discord: "Tham Gia Cộng Đồng Discord",
             btn_save: "💾 Save Settings",
             btn_reset: "🔄 Reset Settings"
         },
@@ -82,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
             stat_idle: "Status: Idle / Resting",
             stat_running: "Status: Spamming based on speed configuration!",
             set_title: "System Settings",
-            set_desc: "Customize theme colors, language and settings~",
+            set_desc: "Customize theme colors, language and join community~",
             lbl_lang: "Language / Ngôn Ngữ:",
             lbl_theme: "Theme Color Mode:",
             opt_theme_white: "🤍 White (Light Mode)",
@@ -91,6 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
             opt_theme_custom: "🌈 Custom Color Palette",
             lbl_custom_color: "Custom Accent Color:",
             lbl_autosave: "Autosave settings",
+            btn_join_discord: "Join Discord Community",
             btn_save: "💾 Save Settings",
             btn_reset: "🔄 Reset Settings"
         }
@@ -133,7 +135,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Theme & Custom Palette logic
     const themeSelect = document.getElementById("theme-select");
     const customPaletteGroup = document.getElementById("custom-palette-group");
     const customColorPicker = document.getElementById("custom-color-picker");
@@ -166,23 +167,15 @@ document.addEventListener("DOMContentLoaded", () => {
         document.documentElement.style.setProperty("--primary-hover", e.target.value);
     });
 
-    // Speed Preset logic
     const speedPreset = document.getElementById("speed-preset");
     const customDelayGroup = document.getElementById("custom-delay-group");
     const raidDelayInput = document.getElementById("raid-delay-input");
 
     speedPreset.addEventListener("change", () => {
-        if (speedPreset.value === "slow") {
-            customDelayGroup.style.display = "none";
-            raidDelayInput.value = 2.0; // 10 tin trong 20 giây = 2s/tin
-        } else if (speedPreset.value === "medium") {
-            customDelayGroup.style.display = "none";
-            raidDelayInput.value = 2.0; // 2 tin trong 4 giây = 2s/tin
-        } else if (speedPreset.value === "super") {
-            customDelayGroup.style.display = "none";
-            raidDelayInput.value = 0.01; // Siêu tốc 100 tin/giây
-        } else {
+        if (speedPreset.value === "custom") {
             customDelayGroup.style.display = "flex";
+        } else {
+            customDelayGroup.style.display = "none";
         }
     });
 
@@ -246,7 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
         liveDot.className = "dot online";
         liveStatusText.innerText = translations[currentLang].stat_running;
 
-        addLog(`Bắt đầu spam (Chế độ: ${preset.toUpperCase()})...`);
+        addLog(`Bắt đầu spam (Chế độ tốc độ: ${preset.toUpperCase()})...`);
 
         let channelId = targetId;
         const headers = {
@@ -290,17 +283,20 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             let batchSize = 1;
-            let batchDelay = delay * 1000;
+            let batchDelay = 100;
 
             if (preset === "slow") {
-                batchSize = 1;
-                batchDelay = 2000; // 10 tin / 20s
+                batchSize = 10;
+                batchDelay = 20000; // 10 tin / 20 giây
             } else if (preset === "medium") {
-                batchSize = 1;
-                batchDelay = 2000; // 2 tin / 4s
+                batchSize = 2;
+                batchDelay = 4000; // 2 tin / 4 giây (dễ ban)
             } else if (preset === "super") {
-                batchSize = 25; // Siêu tốc bùng nổ 100 tin/s
-                batchDelay = 200;
+                batchSize = 100;
+                batchDelay = 1000; // 100 tin / 1 giây (cực cao)
+            } else {
+                batchSize = 1;
+                batchDelay = delay * 1000;
             }
 
             let promises = [];
@@ -343,7 +339,6 @@ document.addEventListener("DOMContentLoaded", () => {
         addLog("Đã nhận lệnh dừng từ người dùng.");
     });
 
-    // Load settings
     fetch("/api/settings")
         .then(res => res.json())
         .then(data => {
